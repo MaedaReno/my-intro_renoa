@@ -3,16 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Renoa's Profile | れのあの自己紹介</title>
-    <meta name="description" content="ハンドネーム「れのあ」の自己紹介ページです。イラスト、ピアノ、そしてAIとの未来について。">
+    <title>Renoa's Portfolio | れのあの自己紹介</title>
+    <meta name="description" content="ハンドネーム「れのあ」の自己紹介ポートフォリオ。イラスト、ピアノ、そしてAIとの未来について。">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;700;800&family=Noto+Sans+JP:wght@300;400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="bg-blob blob-1"></div>
-    <div class="bg-blob blob-2"></div>
+    <canvas id="particle-canvas"></canvas>
 
     <main class="container">
         <!-- Hero Section -->
@@ -21,70 +20,95 @@
                 <img src="avatar.png" alt="Renoa's Avatar">
             </div>
             <h1>Hi, I'm <span class="highlight">Renoa</span></h1>
-            <p class="subtitle">れのあの自己紹介ポートフォリオ</p>
+            <p class="subtitle">クリエイター & AIパートナー</p>
         </section>
 
-        <!-- About Section -->
-        <section id="about" class="reveal">
-            <h2>About Me</h2>
+        <!-- Skills Section -->
+        <section id="skills" class="reveal">
+            <h2>Skills & Level</h2>
             <div class="glass-card">
-                <div class="grid">
-                    <div class="feature-box">
-                        <h3 class="highlight">得意なこと</h3>
-                        <p>イラスト (Illustration)</p>
-                        <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.8;">創造力を形にすることが大好きです。</p>
-                    </div>
-                    <div class="feature-box">
-                        <h3 class="highlight">興味があること</h3>
-                        <p>ピアノ (Piano)</p>
-                        <p style="margin-top: 1rem; font-size: 0.9rem; opacity: 0.8;">美しい旋律と音の世界に惹かれています。</p>
-                    </div>
+                <div class="skill-item">
+                    <div class="skill-info"><span>イラスト制作</span><span class="highlight">Expert</span></div>
+                    <div class="skill-bar-bg"><div class="skill-bar-fill" data-percent="90"></div></div>
+                </div>
+                <div class="skill-item">
+                    <div class="skill-info"><span>ピアノ演奏</span><span class="highlight">Advanced</span></div>
+                    <div class="skill-bar-bg"><div class="skill-bar-fill" data-percent="75"></div></div>
+                </div>
+                <div class="skill-item">
+                    <div class="skill-info"><span>ゲーム制作</span><span class="highlight">Learning</span></div>
+                    <div class="skill-bar-bg"><div class="skill-bar-fill" data-percent="40"></div></div>
+                </div>
+                <div class="skill-item">
+                    <div class="skill-info"><span>AI活用・研究</span><span class="highlight">Interested</span></div>
+                    <div class="skill-bar-bg"><div class="skill-bar-fill" data-percent="60"></div></div>
                 </div>
             </div>
         </section>
 
-        <!-- AI Philosophy Section -->
+        <!-- Piano Section -->
+        <section id="piano" class="reveal">
+            <h2>Mini Piano</h2>
+            <p style="text-align: center; margin-bottom: 2rem;">音が出るよ！クリックするかキーボード（A〜K）で弾いてみてね。</p>
+            <div class="glass-card">
+                <div class="piano-container">
+                    <div class="key white" data-note="C4" data-key="a">Do</div>
+                    <div class="key black" data-note="C#4" data-key="w"></div>
+                    <div class="key white" data-note="D4" data-key="s">Re</div>
+                    <div class="key black" data-note="D#4" data-key="e"></div>
+                    <div class="key white" data-note="E4" data-key="d">Mi</div>
+                    <div class="key white" data-note="F4" data-key="f">Fa</div>
+                    <div class="key black" data-note="F#4" data-key="t"></div>
+                    <div class="key white" data-note="G4" data-key="g">So</div>
+                    <div class="key black" data-note="G#4" data-key="y"></div>
+                    <div class="key white" data-note="A4" data-key="h">La</div>
+                    <div class="key black" data-note="A#4" data-key="u"></div>
+                    <div class="key white" data-note="B4" data-key="j">Si</div>
+                    <div class="key white" data-note="C5" data-key="k">Do</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Canvas Section -->
+        <section id="canvas" class="reveal">
+            <h2>Creative Canvas</h2>
+            <p style="text-align: center; margin-bottom: 2rem;">自由に絵を描いて「ギャラリーに追加」してみよう！</p>
+            <div class="glass-card">
+                <div class="canvas-wrapper">
+                    <canvas id="drawing-canvas" width="600" height="400"></canvas>
+                    <div class="canvas-controls">
+                        <input type="color" id="color-picker" value="#38bdf8">
+                        <input type="range" id="brush-size" min="1" max="20" value="5">
+                        <button class="btn" id="clear-btn">全部消す</button>
+                        <button class="btn btn-primary" id="save-btn">ギャラリーに追加</button>
+                    </div>
+                </div>
+                <div class="gallery" id="drawing-gallery">
+                    <!-- Saved drawings will appear here -->
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Philosophy Section (Moved to end for better flow) -->
         <section id="ai" class="reveal">
             <h2>AI & Me</h2>
             <div class="glass-card">
-                <div class="feature-box" style="margin-bottom: 2rem;">
-                    <h3 class="highlight">自分にとってAIとは</h3>
-                    <p>「頼れる相棒」のような存在です。</p>
+                <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem;">
+                    <div class="feature-box" style="background: rgba(255, 255, 255, 0.03); padding: 2rem; border-radius: 16px;">
+                        <h3 class="highlight">頼れる相棒</h3>
+                        <p>自分にとってAIは、日常を豊かにし、創造性を広げてくれる相棒です。</p>
+                    </div>
+                    <div class="feature-box" style="background: rgba(255, 255, 255, 0.03); padding: 2rem; border-radius: 16px;">
+                        <h3 class="highlight">支え合う仲間</h3>
+                        <p>共に学び、共に成長する仲間として、未来を歩んでいきたいです。</p>
+                    </div>
                 </div>
-                <div class="feature-box">
-                    <h3 class="highlight">今後AIとどう向き合いたいか</h3>
-                    <p>「支えあう仲間」のように向き合っていきたいです。</p>
-                </div>
-            </div>
-        </section>
-
-        <!-- Goals Section -->
-        <section id="goals" class="reveal">
-            <h2>Challenges</h2>
-            <div class="glass-card">
-                <p style="margin-bottom: 2rem;">今回の授業を通じて、以下のことに挑戦したいと考えています：</p>
-                <ul style="list-style: none;">
-                    <li style="margin-bottom: 1.5rem; display: flex; align-items: start; gap: 1rem;">
-                        <span style="color: var(--accent-color); font-size: 1.5rem;">🎮</span>
-                        <div>
-                            <strong class="highlight">ゲームのようなアプリ制作</strong>
-                            <p style="font-size: 0.9rem; opacity: 0.8;">触っているだけで楽しくなるような体験を作りたいです。</p>
-                        </div>
-                    </li>
-                    <li style="display: flex; align-items: start; gap: 1rem;">
-                        <span style="color: var(--accent-color); font-size: 1.5rem;">🚀</span>
-                        <div>
-                            <strong class="highlight">未来のAI活用方法の研究</strong>
-                            <p style="font-size: 0.9rem; opacity: 0.8;">テクノロジーがどう社会を変えるのか調べてみたいです。</p>
-                        </div>
-                    </li>
-                </ul>
             </div>
         </section>
     </main>
 
     <footer style="text-align: center; padding: 4rem 0; opacity: 0.5; font-size: 0.8rem;">
-        <p>&copy; 2026 Renoa. Crafted with AI.</p>
+        <p>&copy; 2026 Renoa. Crafted with Passion & AI.</p>
     </footer>
 
     <script src="script.js"></script>
