@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bgmTimeouts.push(setTimeout(playLoop, maxTime * 1000));
     }
 
-    // --- 3. Creative Canvas & Infallible Infinite Carousel ---
+    // --- 3. Creative Canvas & Smart Gallery Slider ---
     const dCanvas = document.getElementById('drawing-canvas'), dCtx = dCanvas.getContext('2d');
     const colorPicker = document.getElementById('color-picker'), brushSize = document.getElementById('brush-size');
     const clearBtn = document.getElementById('clear-btn'), saveBtn = document.getElementById('save-btn');
@@ -148,17 +148,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function loadGallery() {
         gallery.innerHTML = '';
+        gallery.classList.remove('no-scroll');
         const saved = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
-        if (saved.length === 0) { originalWidth = 0; return; }
+        if (saved.length === 0) { originalWidth = 0; currentX = 0; updateSliderUI(); return; }
 
         const containerWidth = galleryContainer.offsetWidth;
-        const itemWidth = 200 + 24; // Width + Margin-right (1.5rem)
+        const itemWidth = 200 + 24; // Width + Margin (0.75rem * 2)
         const itemsPerSet = saved.length;
         const setWidth = itemsPerSet * itemWidth;
-
-        // Calculate how many times we need to repeat the set to cover the screen plus buffer
-        // Goal: Total width should be at least (containerWidth * 3) to allow seamless warp
-        const repeatCount = Math.max(3, Math.ceil((containerWidth * 2) / setWidth) + 1);
 
         const renderSet = () => {
             saved.forEach((data, index) => {
@@ -170,25 +167,31 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         };
 
-        for (let i = 0; i < repeatCount; i++) {
+        if (setWidth <= containerWidth) {
+            // No need to scroll
             renderSet();
-        }
+            gallery.classList.add('no-scroll');
+            originalWidth = 0;
+            currentX = 0;
+            updateSliderUI();
+        } else {
+            // Infinity scroll needed
+            const repeatCount = Math.max(3, Math.ceil((containerWidth * 2) / setWidth) + 1);
+            for (let i = 0; i < repeatCount; i++) renderSet();
 
-        setTimeout(() => {
-            const items = gallery.children;
-            if (items.length >= itemsPerSet * 2) {
-                // Precise distance of one full set
-                const rectA = items[0].getBoundingClientRect();
-                const rectB = items[itemsPerSet].getBoundingClientRect();
-                originalWidth = rectB.left - rectA.left;
-                
-                // Keep currentX valid during reload if possible, else reset
-                if (currentX === -1 || Math.abs(currentX) > originalWidth * (repeatCount - 1)) {
-                    currentX = -originalWidth;
+            setTimeout(() => {
+                const items = gallery.children;
+                if (items.length >= itemsPerSet * 2) {
+                    const rectA = items[0].getBoundingClientRect();
+                    const rectB = items[itemsPerSet].getBoundingClientRect();
+                    originalWidth = rectB.left - rectA.left;
+                    if (currentX === 0 || Math.abs(currentX) > originalWidth * (repeatCount - 1)) {
+                        currentX = -originalWidth;
+                    }
+                    updateSliderUI();
                 }
-                updateSliderUI();
-            }
-        }, 100);
+            }, 100);
+        }
     }
 
     function deleteDrawing(index) {
@@ -204,38 +207,39 @@ document.addEventListener('DOMContentLoaded', () => {
         loadGallery();
     });
 
-    // --- High-Precision Golden Loop Logic ---
-    let originalWidth = 0, currentX = -1, velocity = 0, isDown = false, lastX = 0, lastTime = 0, isInteracting = false;
+    // --- High-Precision Slider Logic ---
+    let originalWidth = 0, currentX = 0, velocity = 0, isDown = false, lastX = 0, lastTime = 0, isInteracting = false;
     const friction = 0.96;
 
     const updateSliderUI = () => {
-        if (originalWidth <= 0) return;
-        
-        // Warp when crossing boundaries of the middle sets
-        // If we move too far left, warp back right
+        if (originalWidth <= 0) {
+            gallery.style.transform = `translateX(0px)`;
+            return;
+        }
         while (currentX < -originalWidth * 2) currentX += originalWidth;
-        // If we move too far right, warp back left
         while (currentX > -originalWidth) currentX -= originalWidth;
-        
         gallery.style.transform = `translateX(${currentX}px)`;
     };
 
     const loop = () => {
-        if (!isDown) {
+        if (originalWidth > 0 && !isDown) {
             if (isInteracting) {
                 currentX += velocity; velocity *= friction;
                 if (Math.abs(velocity) < 0.1) { velocity = 0; isInteracting = false; }
             } else if (!isPaused) {
-                currentX -= 0.6; // Consistent Linear Auto-scroll
+                currentX -= 0.6;
             }
         }
-        updateSliderUI();
+        if (originalWidth > 0) updateSliderUI();
         requestAnimationFrame(loop);
     };
     requestAnimationFrame(loop);
 
     const onPointerDown = (e) => {
         if (originalWidth <= 0) return;
+        // Bug fix: Do not setPointerCapture if we clicked a delete button
+        if (e.target.classList.contains('delete-btn')) return;
+        
         isDown = true; isInteracting = true;
         lastX = e.clientX; lastTime = performance.now();
         velocity = 0;
@@ -265,14 +269,9 @@ document.addEventListener('DOMContentLoaded', () => {
     galleryContainer.addEventListener('pointerup', onPointerUp);
     galleryContainer.addEventListener('pointercancel', onPointerUp);
 
-    // Hover Pause Control
     galleryContainer.addEventListener('mouseenter', () => isPaused = true);
     galleryContainer.addEventListener('mouseleave', () => isPaused = false);
 
-    // Responsive Recalculation
-    window.addEventListener('resize', () => {
-        loadGallery();
-    });
-
+    window.addEventListener('resize', () => { loadGallery(); });
     loadGallery();
 });

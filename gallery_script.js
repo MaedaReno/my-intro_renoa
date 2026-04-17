@@ -54,8 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const delBtn = document.createElement('button');
             delBtn.className = 'delete-btn';
-            delBtn.style.opacity = '1'; // Always visible on mobile or hover
             delBtn.innerHTML = '×';
+            delBtn.title = '削除'; // Added for accessibility
             delBtn.onclick = (e) => {
                 e.stopPropagation();
                 deleteItem(index);
