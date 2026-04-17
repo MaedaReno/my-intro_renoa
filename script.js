@@ -121,13 +121,13 @@ document.addEventListener('DOMContentLoaded', () => {
         bgmTimeouts.push(setTimeout(playLoop, maxTime * 1000));
     }
 
-    // --- 3. Creative Canvas & "Golden Loop" Gallery Slider ---
+    // --- 3. Creative Canvas & Infallible Infinite Carousel ---
     const dCanvas = document.getElementById('drawing-canvas'), dCtx = dCanvas.getContext('2d');
     const colorPicker = document.getElementById('color-picker'), brushSize = document.getElementById('brush-size');
     const clearBtn = document.getElementById('clear-btn'), saveBtn = document.getElementById('save-btn');
     const gallery = document.getElementById('drawing-gallery'), galleryContainer = document.getElementById('gallery-container');
 
-    let painting = false;
+    let painting = false, isPaused = false;
     const getPos = (e) => {
         const rect = dCanvas.getBoundingClientRect(), scaleX = dCanvas.width / rect.width, scaleY = dCanvas.height / rect.height;
         const cX = e.clientX || (e.touches && e.touches[0].clientX), cY = e.clientY || (e.touches && e.touches[0].clientY);
@@ -151,34 +151,41 @@ document.addEventListener('DOMContentLoaded', () => {
         const saved = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
         if (saved.length === 0) { originalWidth = 0; return; }
 
-        const createItemSet = (list) => {
-            const fragment = document.createDocumentFragment();
-            list.forEach((data, index) => {
+        const containerWidth = galleryContainer.offsetWidth;
+        const itemWidth = 200 + 24; // Width + Margin-right (1.5rem)
+        const itemsPerSet = saved.length;
+        const setWidth = itemsPerSet * itemWidth;
+
+        // Calculate how many times we need to repeat the set to cover the screen plus buffer
+        // Goal: Total width should be at least (containerWidth * 3) to allow seamless warp
+        const repeatCount = Math.max(3, Math.ceil((containerWidth * 2) / setWidth) + 1);
+
+        const renderSet = () => {
+            saved.forEach((data, index) => {
                 const item = document.createElement('div'); item.className = 'gallery-item';
                 const img = document.createElement('img'); img.src = data;
                 const delBtn = document.createElement('button'); delBtn.className = 'delete-btn'; delBtn.innerHTML = '×';
                 delBtn.onclick = (e) => { e.stopPropagation(); deleteDrawing(index); };
-                item.appendChild(img); item.appendChild(delBtn); fragment.appendChild(item);
+                item.appendChild(img); item.appendChild(delBtn); gallery.appendChild(item);
             });
-            return fragment;
         };
 
-        // Triple items for truly infinite looping: [Set A (Clone)] [Set B (Main)] [Set C (Clone)]
-        gallery.appendChild(createItemSet(saved));
-        gallery.appendChild(createItemSet(saved));
-        gallery.appendChild(createItemSet(saved));
+        for (let i = 0; i < repeatCount; i++) {
+            renderSet();
+        }
 
-        // Precision width calculation
         setTimeout(() => {
             const items = gallery.children;
-            if (items.length >= saved.length * 3) {
-                // Calculate originalWidth by measuring distance between identical items in Set A and Set B
+            if (items.length >= itemsPerSet * 2) {
+                // Precise distance of one full set
                 const rectA = items[0].getBoundingClientRect();
-                const rectB = items[saved.length].getBoundingClientRect();
+                const rectB = items[itemsPerSet].getBoundingClientRect();
                 originalWidth = rectB.left - rectA.left;
                 
-                // Initial position: start of middle set (Set B)
-                currentX = -originalWidth;
+                // Keep currentX valid during reload if possible, else reset
+                if (currentX === -1 || Math.abs(currentX) > originalWidth * (repeatCount - 1)) {
+                    currentX = -originalWidth;
+                }
                 updateSliderUI();
             }
         }, 100);
@@ -204,11 +211,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const updateSliderUI = () => {
         if (originalWidth <= 0) return;
         
-        // "Golden Warp" - Teleport seamlessly when crossing Set B boundaries
-        // If we move too far left (into Set C), warp back to Set B start
-        if (currentX < -originalWidth * 2) currentX += originalWidth;
-        // If we move too far right (into Set A), warp forward to Set B start
-        if (currentX > -originalWidth) currentX -= originalWidth;
+        // Warp when crossing boundaries of the middle sets
+        // If we move too far left, warp back right
+        while (currentX < -originalWidth * 2) currentX += originalWidth;
+        // If we move too far right, warp back left
+        while (currentX > -originalWidth) currentX -= originalWidth;
         
         gallery.style.transform = `translateX(${currentX}px)`;
     };
@@ -218,8 +225,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (isInteracting) {
                 currentX += velocity; velocity *= friction;
                 if (Math.abs(velocity) < 0.1) { velocity = 0; isInteracting = false; }
-            } else {
-                currentX -= 0.5; // Smooth auto-scroll
+            } else if (!isPaused) {
+                currentX -= 0.6; // Consistent Linear Auto-scroll
             }
         }
         updateSliderUI();
@@ -257,6 +264,15 @@ document.addEventListener('DOMContentLoaded', () => {
     galleryContainer.addEventListener('pointermove', onPointerMove);
     galleryContainer.addEventListener('pointerup', onPointerUp);
     galleryContainer.addEventListener('pointercancel', onPointerUp);
+
+    // Hover Pause Control
+    galleryContainer.addEventListener('mouseenter', () => isPaused = true);
+    galleryContainer.addEventListener('mouseleave', () => isPaused = false);
+
+    // Responsive Recalculation
+    window.addEventListener('resize', () => {
+        loadGallery();
+    });
 
     loadGallery();
 });
