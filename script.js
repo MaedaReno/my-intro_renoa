@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bgmTimeouts.push(setTimeout(playLoop, maxTime * 1000));
     }
 
-    // --- 3. Creative Canvas & Truly Infinite Gallery Slider ---
+    // --- 3. Creative Canvas & "Golden Loop" Gallery Slider ---
     const dCanvas = document.getElementById('drawing-canvas'), dCtx = dCanvas.getContext('2d');
     const colorPicker = document.getElementById('color-picker'), brushSize = document.getElementById('brush-size');
     const clearBtn = document.getElementById('clear-btn'), saveBtn = document.getElementById('save-btn');
@@ -151,36 +151,37 @@ document.addEventListener('DOMContentLoaded', () => {
         const saved = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
         if (saved.length === 0) { originalWidth = 0; return; }
 
-        const buildItems = (list) => {
+        const createItemSet = (list) => {
+            const fragment = document.createDocumentFragment();
             list.forEach((data, index) => {
                 const item = document.createElement('div'); item.className = 'gallery-item';
                 const img = document.createElement('img'); img.src = data;
                 const delBtn = document.createElement('button'); delBtn.className = 'delete-btn'; delBtn.innerHTML = '×';
                 delBtn.onclick = (e) => { e.stopPropagation(); deleteDrawing(index); };
-                item.appendChild(img); item.appendChild(delBtn); gallery.appendChild(item);
+                item.appendChild(img); item.appendChild(delBtn); fragment.appendChild(item);
             });
+            return fragment;
         };
 
-        // Triple items for extremely seamless loop even in large screens
-        buildItems(saved); buildItems(saved); buildItems(saved);
+        // Triple items for truly infinite looping: [Set A (Clone)] [Set B (Main)] [Set C (Clone)]
+        gallery.appendChild(createItemSet(saved));
+        gallery.appendChild(createItemSet(saved));
+        gallery.appendChild(createItemSet(saved));
 
+        // Precision width calculation
         setTimeout(() => {
-            // Gap is 1.5rem = 24px usually. We need a reliable way to get the width of ONE set.
-            // Sum of widths + gaps of the first 'saved.length' children.
             const items = gallery.children;
-            let width = 0;
-            for (let i = 0; i < saved.length; i++) {
-                const style = window.getComputedStyle(items[i]);
-                const rect = items[i].getBoundingClientRect();
-                width += rect.width + parseFloat(style.marginRight || 0) + 24; // 24 is the gap (1.5rem)
+            if (items.length >= saved.length * 3) {
+                // Calculate originalWidth by measuring distance between identical items in Set A and Set B
+                const rectA = items[0].getBoundingClientRect();
+                const rectB = items[saved.length].getBoundingClientRect();
+                originalWidth = rectB.left - rectA.left;
+                
+                // Initial position: start of middle set (Set B)
+                currentX = -originalWidth;
+                updateSliderUI();
             }
-            // Better yet, just use the offset of the first item of the second set
-            if (items[saved.length]) {
-                originalWidth = items[saved.length].offsetLeft - items[0].offsetLeft;
-            } else {
-                originalWidth = gallery.scrollWidth / 3;
-            }
-        }, 50);
+        }, 100);
     }
 
     function deleteDrawing(index) {
@@ -196,18 +197,18 @@ document.addEventListener('DOMContentLoaded', () => {
         loadGallery();
     });
 
-    // --- Infinite Slider Logic with Inertia ---
-    let originalWidth = 0, currentX = 0, velocity = 0, isDown = false, lastX = 0, lastTime = 0, isInteracting = false;
+    // --- High-Precision Golden Loop Logic ---
+    let originalWidth = 0, currentX = -1, velocity = 0, isDown = false, lastX = 0, lastTime = 0, isInteracting = false;
     const friction = 0.96;
 
     const updateSliderUI = () => {
-        if (originalWidth === 0) return;
+        if (originalWidth <= 0) return;
         
-        // Truly Infinite Loop - Teleport seamlessly
-        // We always keep currentX between -originalWidth and 0 for logic, 
-        // but visually we are looking at the middle set.
-        if (currentX > 0) currentX -= originalWidth;
-        if (currentX < -originalWidth) currentX += originalWidth;
+        // "Golden Warp" - Teleport seamlessly when crossing Set B boundaries
+        // If we move too far left (into Set C), warp back to Set B start
+        if (currentX < -originalWidth * 2) currentX += originalWidth;
+        // If we move too far right (into Set A), warp forward to Set B start
+        if (currentX > -originalWidth) currentX -= originalWidth;
         
         gallery.style.transform = `translateX(${currentX}px)`;
     };
@@ -218,7 +219,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentX += velocity; velocity *= friction;
                 if (Math.abs(velocity) < 0.1) { velocity = 0; isInteracting = false; }
             } else {
-                currentX -= 0.5; // Smooth persistent auto-scroll
+                currentX -= 0.5; // Smooth auto-scroll
             }
         }
         updateSliderUI();
@@ -227,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
     requestAnimationFrame(loop);
 
     const onPointerDown = (e) => {
-        if (originalWidth === 0) return;
+        if (originalWidth <= 0) return;
         isDown = true; isInteracting = true;
         lastX = e.clientX; lastTime = performance.now();
         velocity = 0;

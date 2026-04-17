@@ -200,7 +200,7 @@ h2::after {
 
 .gallery {
     display: flex;
-    gap: 1.5rem;
+    flex-wrap: nowrap; /* Prevent items from wrapping */
     padding: 0 1rem;
     transition: transform 0.1s ease-out;
     will-change: transform;
@@ -209,6 +209,7 @@ h2::after {
 .gallery-item {
     flex: 0 0 200px;
     height: 150px;
+    margin-right: 1.5rem; /* Precise gap control */
     background: white;
     border-radius: 12px;
     position: relative;
