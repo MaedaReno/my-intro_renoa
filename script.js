@@ -121,12 +121,11 @@ document.addEventListener('DOMContentLoaded', () => {
         bgmTimeouts.push(setTimeout(playLoop, maxTime * 1000));
     }
 
-    // --- 3. Creative Canvas & Advanced Gallery Slider ---
+    // --- 3. Creative Canvas & Truly Infinite Gallery Slider ---
     const dCanvas = document.getElementById('drawing-canvas'), dCtx = dCanvas.getContext('2d');
     const colorPicker = document.getElementById('color-picker'), brushSize = document.getElementById('brush-size');
     const clearBtn = document.getElementById('clear-btn'), saveBtn = document.getElementById('save-btn');
     const gallery = document.getElementById('drawing-gallery'), galleryContainer = document.getElementById('gallery-container');
-    const scrollThumb = document.getElementById('scrollbar-thumb');
 
     let painting = false;
     const getPos = (e) => {
@@ -150,10 +149,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadGallery() {
         gallery.innerHTML = '';
         const saved = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
-        if (saved.length === 0) {
-            originalWidth = 0;
-            return;
-        }
+        if (saved.length === 0) { originalWidth = 0; return; }
 
         const buildItems = (list) => {
             list.forEach((data, index) => {
@@ -165,12 +161,25 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         };
 
-        buildItems(saved);
-        buildItems(saved); // Double for loop
+        // Triple items for extremely seamless loop even in large screens
+        buildItems(saved); buildItems(saved); buildItems(saved);
 
-        // Use setTimeout to ensure styles are applied
         setTimeout(() => {
-            originalWidth = gallery.scrollWidth / 2;
+            // Gap is 1.5rem = 24px usually. We need a reliable way to get the width of ONE set.
+            // Sum of widths + gaps of the first 'saved.length' children.
+            const items = gallery.children;
+            let width = 0;
+            for (let i = 0; i < saved.length; i++) {
+                const style = window.getComputedStyle(items[i]);
+                const rect = items[i].getBoundingClientRect();
+                width += rect.width + parseFloat(style.marginRight || 0) + 24; // 24 is the gap (1.5rem)
+            }
+            // Better yet, just use the offset of the first item of the second set
+            if (items[saved.length]) {
+                originalWidth = items[saved.length].offsetLeft - items[0].offsetLeft;
+            } else {
+                originalWidth = gallery.scrollWidth / 3;
+            }
         }, 50);
     }
 
@@ -187,37 +196,29 @@ document.addEventListener('DOMContentLoaded', () => {
         loadGallery();
     });
 
-    // --- Modern Infinite Slider Logic (Pointer Events + Scrollbar) ---
+    // --- Infinite Slider Logic with Inertia ---
     let originalWidth = 0, currentX = 0, velocity = 0, isDown = false, lastX = 0, lastTime = 0, isInteracting = false;
     const friction = 0.96;
 
     const updateSliderUI = () => {
         if (originalWidth === 0) return;
         
-        // Infinite Loop - Reset position seamlessly
+        // Truly Infinite Loop - Teleport seamlessly
+        // We always keep currentX between -originalWidth and 0 for logic, 
+        // but visually we are looking at the middle set.
         if (currentX > 0) currentX -= originalWidth;
         if (currentX < -originalWidth) currentX += originalWidth;
         
         gallery.style.transform = `translateX(${currentX}px)`;
-
-        // Sync Scrollbar Thumb
-        const track = scrollThumb.parentElement;
-        const trackWidth = track.offsetWidth;
-        const thumbWidth = scrollThumb.offsetWidth;
-        // Progress based on relative position within one cycle
-        const relativeX = (currentX % originalWidth + originalWidth) % originalWidth;
-        const progress = 1 - (relativeX / originalWidth);
-        scrollThumb.style.left = `${progress * (trackWidth - thumbWidth)}px`;
     };
 
     const loop = () => {
         if (!isDown) {
             if (isInteracting) {
-                currentX += velocity;
-                velocity *= friction;
+                currentX += velocity; velocity *= friction;
                 if (Math.abs(velocity) < 0.1) { velocity = 0; isInteracting = false; }
             } else {
-                currentX -= 0.5; // Auto-scroll
+                currentX -= 0.5; // Smooth persistent auto-scroll
             }
         }
         updateSliderUI();
@@ -227,10 +228,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const onPointerDown = (e) => {
         if (originalWidth === 0) return;
-        isDown = true;
-        isInteracting = true;
-        lastX = e.clientX;
-        lastTime = performance.now();
+        isDown = true; isInteracting = true;
+        lastX = e.clientX; lastTime = performance.now();
         velocity = 0;
         galleryContainer.setPointerCapture(e.pointerId);
     };
@@ -249,7 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const onPointerUp = (e) => {
         if (!isDown) return;
         isDown = false;
-        velocity = Math.max(Math.min(velocity, 35), -35); // Cap velocity
+        velocity = Math.max(Math.min(velocity, 35), -35);
         galleryContainer.releasePointerCapture(e.pointerId);
     };
 
