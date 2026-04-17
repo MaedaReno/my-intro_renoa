@@ -5,10 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 entry.target.classList.add('active');
-                // Trigger Skill Bars if visible
-                if (entry.target.id === 'skills') {
-                    animateSkillBars();
-                }
+                if (entry.target.id === 'skills') animateSkillBars();
             }
         });
     }, observerOptions);
@@ -61,23 +58,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function initParticles() {
         particles = [];
-        for (let i = 0; i < 80; i++) {
-            particles.push(new Particle());
-        }
+        for (let i = 0; i < 80; i++) particles.push(new Particle());
     }
     initParticles();
 
     function animateParticles() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        particles.forEach(p => {
-            p.update();
-            p.draw();
-        });
+        particles.forEach(p => { p.update(); p.draw(); });
         requestAnimationFrame(animateParticles);
     }
     animateParticles();
 
-    // --- 2. Interactive Piano ---
+    // --- 2. Interactive Piano & Recording ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const notes = {
         "C4": 261.63, "C#4": 277.18, "D4": 293.66, "D#4": 311.13,
@@ -85,12 +77,23 @@ document.addEventListener('DOMContentLoaded', () => {
         "G#4": 415.30, "A4": 440.00, "A#4": 466.16, "B4": 493.88, "C5": 523.25
     };
 
-    function playNote(frequency) {
+    let isRecording = false;
+    let recordingStartTime = 0;
+    let recordedNotes = [];
+    let bgmTimeouts = [];
+    let isPlayingBGM = false;
+    let recordingTimer = null;
+
+    const recordBtn = document.getElementById('record-btn');
+    const playBgmBtn = document.getElementById('play-bgm-btn');
+
+    function playNote(frequency, volume = 0.5) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
         const oscillator = audioCtx.createOscillator();
         const gainNode = audioCtx.createGain();
         oscillator.type = 'sine';
         oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
         gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
         oscillator.connect(gainNode);
         gainNode.connect(audioCtx.destination);
@@ -98,22 +101,29 @@ document.addEventListener('DOMContentLoaded', () => {
         oscillator.stop(audioCtx.currentTime + 1);
     }
 
+    function handleNotePress(note) {
+        playNote(notes[note]);
+        if (isRecording) {
+            recordedNotes.push({
+                note: note,
+                time: audioCtx.currentTime - recordingStartTime
+            });
+        }
+    }
+
     document.querySelectorAll('.key').forEach(key => {
         key.addEventListener('mousedown', () => {
-            const note = key.getAttribute('data-note');
-            playNote(notes[note]);
+            handleNotePress(key.getAttribute('data-note'));
             key.classList.add('active');
         });
         key.addEventListener('mouseup', () => key.classList.remove('active'));
         key.addEventListener('mouseleave', () => key.classList.remove('active'));
     });
 
-    // Keyboard support
     window.addEventListener('keydown', (e) => {
         const keyEl = document.querySelector(`.key[data-key="${e.key.toLowerCase()}"]`);
         if (keyEl && !e.repeat) {
-            const note = keyEl.getAttribute('data-note');
-            playNote(notes[note]);
+            handleNotePress(keyEl.getAttribute('data-note'));
             keyEl.classList.add('active');
         }
     });
@@ -121,6 +131,78 @@ document.addEventListener('DOMContentLoaded', () => {
         const keyEl = document.querySelector(`.key[data-key="${e.key.toLowerCase()}"]`);
         if (keyEl) keyEl.classList.remove('active');
     });
+
+    // Recording Logic
+    recordBtn.addEventListener('click', () => {
+        if (!isRecording) {
+            startRecording();
+        } else {
+            stopRecording();
+        }
+    });
+
+    function startRecording() {
+        isRecording = true;
+        recordedNotes = [];
+        recordingStartTime = audioCtx.currentTime;
+        recordBtn.textContent = '録音停止...';
+        recordBtn.classList.add('btn-primary');
+        playBgmBtn.disabled = true;
+        
+        // 30s limit
+        recordingTimer = setTimeout(stopRecording, 30000);
+    }
+
+    function stopRecording() {
+        isRecording = false;
+        clearTimeout(recordingTimer);
+        recordBtn.textContent = '録音開始 (最大30秒)';
+        recordBtn.classList.remove('btn-primary');
+        if (recordedNotes.length > 0) {
+            playBgmBtn.disabled = false;
+        }
+    }
+
+    playBgmBtn.addEventListener('click', () => {
+        if (!isPlayingBGM) {
+            startBGM();
+        } else {
+            stopBGM();
+        }
+    });
+
+    function startBGM() {
+        isPlayingBGM = true;
+        playBgmBtn.textContent = 'BGM停止';
+        playBgmBtn.classList.add('btn-primary');
+        playLoop();
+    }
+
+    function stopBGM() {
+        isPlayingBGM = false;
+        playBgmBtn.textContent = 'BGMとして再生';
+        playBgmBtn.classList.remove('btn-primary');
+        bgmTimeouts.forEach(t => clearTimeout(t));
+        bgmTimeouts = [];
+    }
+
+    function playLoop() {
+        if (!isPlayingBGM || recordedNotes.length === 0) return;
+        
+        const loopDuration = 30000; // Fixed loop or based on last note? Let's use 30s max or max note time + 1s
+        const maxTime = Math.max(...recordedNotes.map(n => n.time)) + 1;
+        
+        recordedNotes.forEach(item => {
+            const t = setTimeout(() => {
+                playNote(notes[item.note], 0.15); // Lower volume for BGM
+            }, item.time * 1000);
+            bgmTimeouts.push(t);
+        });
+
+        // Schedule next loop
+        const loopTimeout = setTimeout(playLoop, maxTime * 1000);
+        bgmTimeouts.push(loopTimeout);
+    }
 
     // --- 3. Creative Canvas ---
     const dCanvas = document.getElementById('drawing-canvas');
@@ -133,6 +215,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let painting = false;
 
+    // Helper to get correct coordinates for PC and Mobile
+    function getPos(e) {
+        const rect = dCanvas.getBoundingClientRect();
+        const scaleX = dCanvas.width / rect.width;
+        const scaleY = dCanvas.height / rect.height;
+        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    }
+
     function startPosition(e) {
         painting = true;
         draw(e);
@@ -143,32 +238,25 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function draw(e) {
         if (!painting) return;
-        const rect = dCanvas.getBoundingClientRect();
-        const x = (e.clientX || e.touches[0].clientX) - rect.left;
-        const y = (e.clientY || e.touches[0].clientY) - rect.top;
-
+        const pos = getPos(e);
         dCtx.lineWidth = brushSize.value;
         dCtx.lineCap = 'round';
         dCtx.strokeStyle = colorPicker.value;
-
-        dCtx.lineTo(x, y);
+        dCtx.lineTo(pos.x, pos.y);
         dCtx.stroke();
         dCtx.beginPath();
-        dCtx.moveTo(x, y);
+        dCtx.moveTo(pos.x, pos.y);
     }
 
     dCanvas.addEventListener('mousedown', startPosition);
     dCanvas.addEventListener('mouseup', finishedPosition);
     dCanvas.addEventListener('mousemove', draw);
-    dCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e.touches[0]); });
+    dCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e); }, {passive: false});
     dCanvas.addEventListener('touchend', finishedPosition);
-    dCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); });
+    dCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); }, {passive: false});
 
-    clearBtn.addEventListener('click', () => {
-        dCtx.clearRect(0, 0, dCanvas.width, dCanvas.height);
-    });
+    clearBtn.addEventListener('click', () => dCtx.clearRect(0, 0, dCanvas.width, dCanvas.height));
 
-    // Gallery Logic (LocalStorage)
     function saveToGallery() {
         const dataURL = dCanvas.toDataURL();
         let savedDrawings = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
