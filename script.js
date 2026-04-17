@@ -126,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const colorPicker = document.getElementById('color-picker'), brushSize = document.getElementById('brush-size');
     const clearBtn = document.getElementById('clear-btn'), saveBtn = document.getElementById('save-btn');
     const gallery = document.getElementById('drawing-gallery'), galleryContainer = document.getElementById('gallery-container');
+    const scrollThumb = document.getElementById('scrollbar-thumb');
 
     let painting = false;
     const getPos = (e) => {
@@ -150,22 +151,16 @@ document.addEventListener('DOMContentLoaded', () => {
         gallery.innerHTML = '';
         const saved = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
         if (saved.length === 0) return;
-
-        // Clone items for infinite loop
         const buildItems = (list) => {
             list.forEach((data, index) => {
-                const item = document.createElement('div');
-                item.className = 'gallery-item';
+                const item = document.createElement('div'); item.className = 'gallery-item';
                 const img = document.createElement('img'); img.src = data;
                 const delBtn = document.createElement('button'); delBtn.className = 'delete-btn'; delBtn.innerHTML = '×';
                 delBtn.onclick = (e) => { e.stopPropagation(); deleteDrawing(index); };
                 item.appendChild(img); item.appendChild(delBtn); gallery.appendChild(item);
             });
         };
-
-        buildItems(saved); // Original
-        buildItems(saved); // Second set for cloning
-        
+        buildItems(saved); buildItems(saved);
         requestAnimationFrame(() => { originalWidth = gallery.scrollWidth / 2; });
     }
 
@@ -182,31 +177,33 @@ document.addEventListener('DOMContentLoaded', () => {
         loadGallery();
     });
 
-    // --- Infinite Slider Logic with Inertia ---
-    let originalWidth = 0, currentX = 0, targetX = 0, velocity = 0, isDown = false, lastX = 0, lastTime = 0, isInteracting = false;
-    const friction = 0.96; // Standard smartphone feel
+    // --- Modern Infinite Slider Logic (Pointer Events + Scrollbar) ---
+    let originalWidth = 0, currentX = 0, velocity = 0, isDown = false, lastX = 0, lastTime = 0, isInteracting = false;
+    const friction = 0.96;
 
     const updateSliderUI = () => {
         if (originalWidth === 0) return;
-        // Infinite Loop logic
+        // Infinite Loop
         if (currentX > 0) currentX -= originalWidth;
         if (currentX < -originalWidth) currentX += originalWidth;
         gallery.style.transform = `translateX(${currentX}px)`;
+
+        // Sync Scrollbar Thumb
+        const track = scrollThumb.parentElement;
+        const trackWidth = track.offsetWidth;
+        const thumbWidth = scrollThumb.offsetWidth;
+        const progress = Math.abs(currentX % originalWidth) / originalWidth;
+        scrollThumb.style.left = `${progress * (trackWidth - thumbWidth)}px`;
     };
 
-    const loop = (time) => {
+    const loop = () => {
         if (!isDown) {
             if (isInteracting) {
-                // Apply inertia
                 currentX += velocity;
                 velocity *= friction;
-                if (Math.abs(velocity) < 0.1) {
-                    velocity = 0;
-                    isInteracting = false;
-                }
+                if (Math.abs(velocity) < 0.1) { velocity = 0; isInteracting = false; }
             } else {
-                // Auto-scroll logic (slow)
-                currentX -= 0.5;
+                currentX -= 0.5; // Auto-scroll
             }
         }
         updateSliderUI();
@@ -214,38 +211,38 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     requestAnimationFrame(loop);
 
-    const handlePointerDown = (x) => {
+    // Modern Pointer Event Handlers
+    const onPointerDown = (e) => {
         isDown = true;
         isInteracting = true;
-        lastX = x;
+        lastX = e.clientX;
         lastTime = performance.now();
         velocity = 0;
+        galleryContainer.setPointerCapture(e.pointerId);
     };
 
-    const handlePointerMove = (x) => {
+    const onPointerMove = (e) => {
         if (!isDown) return;
         const now = performance.now();
+        const dx = e.clientX - lastX;
         const dt = now - lastTime;
-        const dx = x - lastX;
-        if (dt > 0) velocity = dx; // Quick simple velocity
+        if (dt > 0) velocity = dx;
         currentX += dx;
-        lastX = x;
+        lastX = e.clientX;
         lastTime = now;
     };
 
-    const handlePointerUp = () => {
+    const onPointerUp = (e) => {
+        if (!isDown) return;
         isDown = false;
-        // Maintain velocity for inertia, but cap it if it's too crazy
-        velocity = Math.max(Math.min(velocity, 40), -40);
+        velocity = Math.max(Math.min(velocity, 35), -35); // Cap velocity
+        galleryContainer.releasePointerCapture(e.pointerId);
     };
 
-    galleryContainer.addEventListener('mousedown', (e) => handlePointerDown(e.pageX));
-    window.addEventListener('mousemove', (e) => handlePointerMove(e.pageX));
-    window.addEventListener('mouseup', handlePointerUp);
-
-    galleryContainer.addEventListener('touchstart', (e) => handlePointerDown(e.touches[0].pageX));
-    window.addEventListener('touchmove', (e) => { if(isDown) e.preventDefault(); handlePointerMove(e.touches[0].pageX); }, {passive: false});
-    window.addEventListener('touchend', handlePointerUp);
+    galleryContainer.addEventListener('pointerdown', onPointerDown);
+    galleryContainer.addEventListener('pointermove', onPointerMove);
+    galleryContainer.addEventListener('pointerup', onPointerUp);
+    galleryContainer.addEventListener('pointercancel', onPointerUp);
 
     loadGallery();
 });
