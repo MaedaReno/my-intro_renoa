@@ -47,7 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function initParticles() { for (let i = 0; i < 80; i++) particles.push(new Particle()); }
+    function initParticles() { particles = []; for (let i = 0; i < 80; i++) particles.push(new Particle()); }
     initParticles();
     const animateParticles = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -121,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
         bgmTimeouts.push(setTimeout(playLoop, maxTime * 1000));
     }
 
-    // --- 3. Creative Canvas & Gallery Upgrade ---
+    // --- 3. Creative Canvas & Advanced Gallery Slider ---
     const dCanvas = document.getElementById('drawing-canvas'), dCtx = dCanvas.getContext('2d');
     const colorPicker = document.getElementById('color-picker'), brushSize = document.getElementById('brush-size');
     const clearBtn = document.getElementById('clear-btn'), saveBtn = document.getElementById('save-btn');
@@ -149,16 +149,26 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadGallery() {
         gallery.innerHTML = '';
         const saved = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
-        saved.forEach((data, index) => {
-            const item = document.createElement('div');
-            item.className = 'gallery-item';
-            const img = document.createElement('img'); img.src = data;
-            const delBtn = document.createElement('button'); delBtn.className = 'delete-btn'; delBtn.innerHTML = '×';
-            delBtn.onclick = (e) => { e.stopPropagation(); deleteDrawing(index); };
-            item.appendChild(img); item.appendChild(delBtn); gallery.appendChild(item);
-        });
-        updateSlider();
+        if (saved.length === 0) return;
+
+        // Clone items for infinite loop
+        const buildItems = (list) => {
+            list.forEach((data, index) => {
+                const item = document.createElement('div');
+                item.className = 'gallery-item';
+                const img = document.createElement('img'); img.src = data;
+                const delBtn = document.createElement('button'); delBtn.className = 'delete-btn'; delBtn.innerHTML = '×';
+                delBtn.onclick = (e) => { e.stopPropagation(); deleteDrawing(index); };
+                item.appendChild(img); item.appendChild(delBtn); gallery.appendChild(item);
+            });
+        };
+
+        buildItems(saved); // Original
+        buildItems(saved); // Second set for cloning
+        
+        requestAnimationFrame(() => { originalWidth = gallery.scrollWidth / 2; });
     }
+
     function deleteDrawing(index) {
         let saved = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
         saved.splice(index, 1);
@@ -172,64 +182,70 @@ document.addEventListener('DOMContentLoaded', () => {
         loadGallery();
     });
 
-    // --- Gallery Slider Logic (Drag, Swipe, Auto-scroll) ---
-    let isDown = false, startX, scrollLeft, velocity = 0, autoScrollX = 0, isInteracting = false;
+    // --- Infinite Slider Logic with Inertia ---
+    let originalWidth = 0, currentX = 0, targetX = 0, velocity = 0, isDown = false, lastX = 0, lastTime = 0, isInteracting = false;
+    const friction = 0.96; // Standard smartphone feel
 
-    const updateSlider = () => {
-        const totalWidth = gallery.scrollWidth;
-        const containerWidth = galleryContainer.offsetWidth;
-        if (totalWidth <= containerWidth) { gallery.style.transform = 'translateX(0)'; return; }
+    const updateSliderUI = () => {
+        if (originalWidth === 0) return;
+        // Infinite Loop logic
+        if (currentX > 0) currentX -= originalWidth;
+        if (currentX < -originalWidth) currentX += originalWidth;
+        gallery.style.transform = `translateX(${currentX}px)`;
     };
 
-    const step = () => {
-        if (!isInteracting && !isDown) {
-            autoScrollX -= 0.5; // Slowly flowing
-            const totalWidth = gallery.scrollWidth;
-            const containerWidth = galleryContainer.offsetWidth;
-            if (Math.abs(autoScrollX) > totalWidth - containerWidth) autoScrollX = 0;
-            gallery.style.transform = `translateX(${autoScrollX}px)`;
+    const loop = (time) => {
+        if (!isDown) {
+            if (isInteracting) {
+                // Apply inertia
+                currentX += velocity;
+                velocity *= friction;
+                if (Math.abs(velocity) < 0.1) {
+                    velocity = 0;
+                    isInteracting = false;
+                }
+            } else {
+                // Auto-scroll logic (slow)
+                currentX -= 0.5;
+            }
         }
-        requestAnimationFrame(step);
+        updateSliderUI();
+        requestAnimationFrame(loop);
     };
-    requestAnimationFrame(step);
+    requestAnimationFrame(loop);
 
-    galleryContainer.addEventListener('mousedown', (e) => {
-        isDown = true; isInteracting = true;
-        startX = e.pageX - gallery.offsetLeft;
-        scrollLeft = autoScrollX;
-    });
-    galleryContainer.addEventListener('mouseleave', () => { isDown = false; isInteracting = false; });
-    galleryContainer.addEventListener('mouseup', () => { isDown = false; setTimeout(() => isInteracting = false, 1000); });
-    galleryContainer.addEventListener('mousemove', (e) => {
-        if (!isDown) return;
-        e.preventDefault();
-        const x = e.pageX - gallery.offsetLeft;
-        const walk = (x - startX) * 2;
-        autoScrollX = scrollLeft + walk;
-        // Boundaries
-        const maxScroll = -(gallery.scrollWidth - galleryContainer.offsetWidth);
-        if (autoScrollX > 0) autoScrollX = 0;
-        if (autoScrollX < maxScroll) autoScrollX = maxScroll;
-        gallery.style.transform = `translateX(${autoScrollX}px)`;
-    });
+    const handlePointerDown = (x) => {
+        isDown = true;
+        isInteracting = true;
+        lastX = x;
+        lastTime = performance.now();
+        velocity = 0;
+    };
 
-    // Touch Support
-    galleryContainer.addEventListener('touchstart', (e) => {
-        isDown = true; isInteracting = true;
-        startX = e.touches[0].pageX - gallery.offsetLeft;
-        scrollLeft = autoScrollX;
-    });
-    galleryContainer.addEventListener('touchend', () => { isDown = false; setTimeout(() => isInteracting = false, 1000); });
-    galleryContainer.addEventListener('touchmove', (e) => {
+    const handlePointerMove = (x) => {
         if (!isDown) return;
-        const x = e.touches[0].pageX - gallery.offsetLeft;
-        const walk = (x - startX) * 2;
-        autoScrollX = scrollLeft + walk;
-        const maxScroll = -(gallery.scrollWidth - galleryContainer.offsetWidth);
-        if (autoScrollX > 0) autoScrollX = 0;
-        if (autoScrollX < maxScroll) autoScrollX = maxScroll;
-        gallery.style.transform = `translateX(${autoScrollX}px)`;
-    });
+        const now = performance.now();
+        const dt = now - lastTime;
+        const dx = x - lastX;
+        if (dt > 0) velocity = dx; // Quick simple velocity
+        currentX += dx;
+        lastX = x;
+        lastTime = now;
+    };
+
+    const handlePointerUp = () => {
+        isDown = false;
+        // Maintain velocity for inertia, but cap it if it's too crazy
+        velocity = Math.max(Math.min(velocity, 40), -40);
+    };
+
+    galleryContainer.addEventListener('mousedown', (e) => handlePointerDown(e.pageX));
+    window.addEventListener('mousemove', (e) => handlePointerMove(e.pageX));
+    window.addEventListener('mouseup', handlePointerUp);
+
+    galleryContainer.addEventListener('touchstart', (e) => handlePointerDown(e.touches[0].pageX));
+    window.addEventListener('touchmove', (e) => { if(isDown) e.preventDefault(); handlePointerMove(e.touches[0].pageX); }, {passive: false});
+    window.addEventListener('touchend', handlePointerUp);
 
     loadGallery();
 });
