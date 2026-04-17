@@ -269,6 +269,70 @@ h2::after {
 .gallery-item:hover .delete-btn { opacity: 1; transform: scale(1.1); }
 .delete-btn:hover { background: #ff6b81; transform: scale(1.2) !important; }
 
+/* Buttons */
+.canvas-controls {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.btn {
+    padding: 0.8rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: var(--transition);
+    background: var(--glass-bg);
+    color: white;
+    border: 1px solid var(--glass-border);
+    text-decoration: none;
+    display: inline-block;
+}
+.btn:hover { background: var(--accent-color); color: var(--bg-color); }
+.btn-primary { background: var(--accent-color); color: var(--bg-color); }
+.btn-outline {
+    background: transparent;
+    border: 1px solid var(--accent-color);
+    color: var(--accent-color);
+}
+.btn-outline:hover {
+    background: var(--accent-color);
+    color: var(--bg-color);
+}
+
+/* Gallery Grid Page */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    margin-top: 2rem;
+}
+
+@media (min-width: 768px) {
+    .gallery-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (min-width: 1024px) {
+    .gallery-grid {
+        grid-template-columns: repeat(5, 1fr);
+    }
+}
+
+.gallery-page-item {
+    background: white;
+    border-radius: 12px;
+    aspect-ratio: 1 / 1;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    transition: transform 0.3s;
+}
+.gallery-page-item:hover { transform: translateY(-5px); }
+.gallery-page-item img { width: 100%; height: 100%; object-fit: contain; padding: 10px; }
+
 @media (max-width: 768px) {
     h1 { font-size: 2.8rem; }
     .key { width: 35px; height: 140px; }

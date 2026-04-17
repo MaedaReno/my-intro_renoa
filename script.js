@@ -150,7 +150,11 @@ document.addEventListener('DOMContentLoaded', () => {
     function loadGallery() {
         gallery.innerHTML = '';
         const saved = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
-        if (saved.length === 0) return;
+        if (saved.length === 0) {
+            originalWidth = 0;
+            return;
+        }
+
         const buildItems = (list) => {
             list.forEach((data, index) => {
                 const item = document.createElement('div'); item.className = 'gallery-item';
@@ -160,8 +164,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 item.appendChild(img); item.appendChild(delBtn); gallery.appendChild(item);
             });
         };
-        buildItems(saved); buildItems(saved);
-        requestAnimationFrame(() => { originalWidth = gallery.scrollWidth / 2; });
+
+        buildItems(saved);
+        buildItems(saved); // Double for loop
+
+        // Use setTimeout to ensure styles are applied
+        setTimeout(() => {
+            originalWidth = gallery.scrollWidth / 2;
+        }, 50);
     }
 
     function deleteDrawing(index) {
@@ -183,16 +193,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const updateSliderUI = () => {
         if (originalWidth === 0) return;
-        // Infinite Loop
+        
+        // Infinite Loop - Reset position seamlessly
         if (currentX > 0) currentX -= originalWidth;
         if (currentX < -originalWidth) currentX += originalWidth;
+        
         gallery.style.transform = `translateX(${currentX}px)`;
 
         // Sync Scrollbar Thumb
         const track = scrollThumb.parentElement;
         const trackWidth = track.offsetWidth;
         const thumbWidth = scrollThumb.offsetWidth;
-        const progress = Math.abs(currentX % originalWidth) / originalWidth;
+        // Progress based on relative position within one cycle
+        const relativeX = (currentX % originalWidth + originalWidth) % originalWidth;
+        const progress = 1 - (relativeX / originalWidth);
         scrollThumb.style.left = `${progress * (trackWidth - thumbWidth)}px`;
     };
 
@@ -211,8 +225,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     requestAnimationFrame(loop);
 
-    // Modern Pointer Event Handlers
     const onPointerDown = (e) => {
+        if (originalWidth === 0) return;
         isDown = true;
         isInteracting = true;
         lastX = e.clientX;
