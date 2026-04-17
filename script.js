@@ -23,11 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const canvas = document.getElementById('particle-canvas');
     const ctx = canvas.getContext('2d');
     let particles = [];
-
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
+    const resizeCanvas = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
@@ -41,32 +37,23 @@ document.addEventListener('DOMContentLoaded', () => {
             this.opacity = Math.random() * 0.5 + 0.2;
         }
         update() {
-            this.x += this.speedX;
-            this.y += this.speedY;
-            if (this.x > canvas.width) this.x = 0;
-            if (this.x < 0) this.x = canvas.width;
-            if (this.y > canvas.height) this.y = 0;
-            if (this.y < 0) this.y = canvas.height;
+            this.x += this.speedX; this.y += this.speedY;
+            if (this.x > canvas.width) this.x = 0; if (this.x < 0) this.x = canvas.width;
+            if (this.y > canvas.height) this.y = 0; if (this.y < 0) this.y = canvas.height;
         }
         draw() {
             ctx.fillStyle = `rgba(56, 189, 248, ${this.opacity})`;
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
         }
     }
 
-    function initParticles() {
-        particles = [];
-        for (let i = 0; i < 80; i++) particles.push(new Particle());
-    }
+    function initParticles() { for (let i = 0; i < 80; i++) particles.push(new Particle()); }
     initParticles();
-
-    function animateParticles() {
+    const animateParticles = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         particles.forEach(p => { p.update(); p.draw(); });
         requestAnimationFrame(animateParticles);
-    }
+    };
     animateParticles();
 
     // --- 2. Interactive Piano & Recording ---
@@ -77,207 +64,172 @@ document.addEventListener('DOMContentLoaded', () => {
         "G#4": 415.30, "A4": 440.00, "A#4": 466.16, "B4": 493.88, "C5": 523.25
     };
 
-    let isRecording = false;
-    let recordingStartTime = 0;
-    let recordedNotes = [];
-    let bgmTimeouts = [];
-    let isPlayingBGM = false;
-    let recordingTimer = null;
-
-    const recordBtn = document.getElementById('record-btn');
-    const playBgmBtn = document.getElementById('play-bgm-btn');
+    let isRecording = false, recordingStartTime = 0, recordedNotes = [], bgmTimeouts = [], isPlayingBGM = false, recordingTimer = null;
+    const recordBtn = document.getElementById('record-btn'), playBgmBtn = document.getElementById('play-bgm-btn');
 
     function playNote(frequency, volume = 0.5) {
         if (audioCtx.state === 'suspended') audioCtx.resume();
-        const oscillator = audioCtx.createOscillator();
-        const gainNode = audioCtx.createGain();
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(frequency, audioCtx.currentTime);
-        gainNode.gain.setValueAtTime(volume, audioCtx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
-        oscillator.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        oscillator.start();
-        oscillator.stop(audioCtx.currentTime + 1);
+        const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+        osc.frequency.setTargetAtTime(frequency, audioCtx.currentTime, 0.01);
+        gain.gain.setTargetAtTime(volume, audioCtx.currentTime, 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + 1);
     }
 
     function handleNotePress(note) {
         playNote(notes[note]);
-        if (isRecording) {
-            recordedNotes.push({
-                note: note,
-                time: audioCtx.currentTime - recordingStartTime
-            });
-        }
+        if (isRecording) recordedNotes.push({ note, time: audioCtx.currentTime - recordingStartTime });
     }
 
     document.querySelectorAll('.key').forEach(key => {
-        key.addEventListener('mousedown', () => {
-            handleNotePress(key.getAttribute('data-note'));
-            key.classList.add('active');
-        });
+        key.addEventListener('mousedown', () => { handleNotePress(key.getAttribute('data-note')); key.classList.add('active'); });
         key.addEventListener('mouseup', () => key.classList.remove('active'));
         key.addEventListener('mouseleave', () => key.classList.remove('active'));
     });
 
     window.addEventListener('keydown', (e) => {
         const keyEl = document.querySelector(`.key[data-key="${e.key.toLowerCase()}"]`);
-        if (keyEl && !e.repeat) {
-            handleNotePress(keyEl.getAttribute('data-note'));
-            keyEl.classList.add('active');
-        }
+        if (keyEl && !e.repeat) { handleNotePress(keyEl.getAttribute('data-note')); keyEl.classList.add('active'); }
     });
     window.addEventListener('keyup', (e) => {
         const keyEl = document.querySelector(`.key[data-key="${e.key.toLowerCase()}"]`);
         if (keyEl) keyEl.classList.remove('active');
     });
 
-    // Recording Logic
-    recordBtn.addEventListener('click', () => {
-        if (!isRecording) {
-            startRecording();
-        } else {
-            stopRecording();
-        }
-    });
-
+    recordBtn.addEventListener('click', () => isRecording ? stopRecording() : startRecording());
     function startRecording() {
-        isRecording = true;
-        recordedNotes = [];
-        recordingStartTime = audioCtx.currentTime;
-        recordBtn.textContent = '録音停止...';
-        recordBtn.classList.add('btn-primary');
-        playBgmBtn.disabled = true;
-        
-        // 30s limit
-        recordingTimer = setTimeout(stopRecording, 30000);
+        isRecording = true; recordedNotes = []; recordingStartTime = audioCtx.currentTime;
+        recordBtn.textContent = '録音停止...'; recordBtn.classList.add('btn-primary');
+        playBgmBtn.disabled = true; recordingTimer = setTimeout(stopRecording, 30000);
     }
-
     function stopRecording() {
-        isRecording = false;
-        clearTimeout(recordingTimer);
-        recordBtn.textContent = '録音開始 (最大30秒)';
-        recordBtn.classList.remove('btn-primary');
-        if (recordedNotes.length > 0) {
-            playBgmBtn.disabled = false;
-        }
+        isRecording = false; clearTimeout(recordingTimer);
+        recordBtn.textContent = '録音開始 (最大30秒)'; recordBtn.classList.remove('btn-primary');
+        if (recordedNotes.length > 0) playBgmBtn.disabled = false;
     }
 
-    playBgmBtn.addEventListener('click', () => {
-        if (!isPlayingBGM) {
-            startBGM();
-        } else {
-            stopBGM();
-        }
-    });
-
-    function startBGM() {
-        isPlayingBGM = true;
-        playBgmBtn.textContent = 'BGM停止';
-        playBgmBtn.classList.add('btn-primary');
-        playLoop();
-    }
-
-    function stopBGM() {
-        isPlayingBGM = false;
-        playBgmBtn.textContent = 'BGMとして再生';
-        playBgmBtn.classList.remove('btn-primary');
-        bgmTimeouts.forEach(t => clearTimeout(t));
-        bgmTimeouts = [];
-    }
-
+    playBgmBtn.addEventListener('click', () => isPlayingBGM ? stopBGM() : startBGM());
+    function startBGM() { isPlayingBGM = true; playBgmBtn.textContent = 'BGM停止'; playBgmBtn.classList.add('btn-primary'); playLoop(); }
+    function stopBGM() { isPlayingBGM = false; playBgmBtn.textContent = 'BGMとして再生'; playBgmBtn.classList.remove('btn-primary'); bgmTimeouts.forEach(clearTimeout); bgmTimeouts = []; }
     function playLoop() {
         if (!isPlayingBGM || recordedNotes.length === 0) return;
-        
-        const loopDuration = 30000; // Fixed loop or based on last note? Let's use 30s max or max note time + 1s
         const maxTime = Math.max(...recordedNotes.map(n => n.time)) + 1;
-        
         recordedNotes.forEach(item => {
-            const t = setTimeout(() => {
-                playNote(notes[item.note], 0.15); // Lower volume for BGM
-            }, item.time * 1000);
-            bgmTimeouts.push(t);
+            bgmTimeouts.push(setTimeout(() => playNote(notes[item.note], 0.15), item.time * 1000));
         });
-
-        // Schedule next loop
-        const loopTimeout = setTimeout(playLoop, maxTime * 1000);
-        bgmTimeouts.push(loopTimeout);
+        bgmTimeouts.push(setTimeout(playLoop, maxTime * 1000));
     }
 
-    // --- 3. Creative Canvas ---
-    const dCanvas = document.getElementById('drawing-canvas');
-    const dCtx = dCanvas.getContext('2d');
-    const colorPicker = document.getElementById('color-picker');
-    const brushSize = document.getElementById('brush-size');
-    const clearBtn = document.getElementById('clear-btn');
-    const saveBtn = document.getElementById('save-btn');
-    const gallery = document.getElementById('drawing-gallery');
+    // --- 3. Creative Canvas & Gallery Upgrade ---
+    const dCanvas = document.getElementById('drawing-canvas'), dCtx = dCanvas.getContext('2d');
+    const colorPicker = document.getElementById('color-picker'), brushSize = document.getElementById('brush-size');
+    const clearBtn = document.getElementById('clear-btn'), saveBtn = document.getElementById('save-btn');
+    const gallery = document.getElementById('drawing-gallery'), galleryContainer = document.getElementById('gallery-container');
 
     let painting = false;
-
-    // Helper to get correct coordinates for PC and Mobile
-    function getPos(e) {
-        const rect = dCanvas.getBoundingClientRect();
-        const scaleX = dCanvas.width / rect.width;
-        const scaleY = dCanvas.height / rect.height;
-        const clientX = e.clientX || (e.touches && e.touches[0].clientX);
-        const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-        return {
-            x: (clientX - rect.left) * scaleX,
-            y: (clientY - rect.top) * scaleY
-        };
-    }
-
-    function startPosition(e) {
-        painting = true;
-        draw(e);
-    }
-    function finishedPosition() {
-        painting = false;
-        dCtx.beginPath();
-    }
-    function draw(e) {
-        if (!painting) return;
-        const pos = getPos(e);
-        dCtx.lineWidth = brushSize.value;
-        dCtx.lineCap = 'round';
-        dCtx.strokeStyle = colorPicker.value;
-        dCtx.lineTo(pos.x, pos.y);
-        dCtx.stroke();
-        dCtx.beginPath();
-        dCtx.moveTo(pos.x, pos.y);
-    }
-
-    dCanvas.addEventListener('mousedown', startPosition);
-    dCanvas.addEventListener('mouseup', finishedPosition);
+    const getPos = (e) => {
+        const rect = dCanvas.getBoundingClientRect(), scaleX = dCanvas.width / rect.width, scaleY = dCanvas.height / rect.height;
+        const cX = e.clientX || (e.touches && e.touches[0].clientX), cY = e.clientY || (e.touches && e.touches[0].clientY);
+        return { x: (cX - rect.left) * scaleX, y: (cY - rect.top) * scaleY };
+    };
+    const draw = (e) => {
+        if (!painting) return; const pos = getPos(e);
+        dCtx.lineWidth = brushSize.value; dCtx.lineCap = 'round'; dCtx.strokeStyle = colorPicker.value;
+        dCtx.lineTo(pos.x, pos.y); dCtx.stroke(); dCtx.beginPath(); dCtx.moveTo(pos.x, pos.y);
+    };
+    dCanvas.addEventListener('mousedown', (e) => { painting = true; draw(e); });
+    dCanvas.addEventListener('mouseup', () => { painting = false; dCtx.beginPath(); });
     dCanvas.addEventListener('mousemove', draw);
-    dCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startPosition(e); }, {passive: false});
-    dCanvas.addEventListener('touchend', finishedPosition);
+    dCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); painting = true; draw(e); }, {passive: false});
+    dCanvas.addEventListener('touchend', () => { painting = false; dCtx.beginPath(); });
     dCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); }, {passive: false});
-
     clearBtn.addEventListener('click', () => dCtx.clearRect(0, 0, dCanvas.width, dCanvas.height));
-
-    function saveToGallery() {
-        const dataURL = dCanvas.toDataURL();
-        let savedDrawings = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
-        savedDrawings.push(dataURL);
-        localStorage.setItem('reno-drawings', JSON.stringify(savedDrawings));
-        loadGallery();
-    }
 
     function loadGallery() {
         gallery.innerHTML = '';
-        const savedDrawings = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
-        savedDrawings.slice().reverse().forEach(data => {
+        const saved = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
+        saved.forEach((data, index) => {
             const item = document.createElement('div');
             item.className = 'gallery-item';
-            const img = document.createElement('img');
-            img.src = data;
-            item.appendChild(img);
-            gallery.appendChild(item);
+            const img = document.createElement('img'); img.src = data;
+            const delBtn = document.createElement('button'); delBtn.className = 'delete-btn'; delBtn.innerHTML = '×';
+            delBtn.onclick = (e) => { e.stopPropagation(); deleteDrawing(index); };
+            item.appendChild(img); item.appendChild(delBtn); gallery.appendChild(item);
         });
+        updateSlider();
     }
+    function deleteDrawing(index) {
+        let saved = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
+        saved.splice(index, 1);
+        localStorage.setItem('reno-drawings', JSON.stringify(saved));
+        loadGallery();
+    }
+    saveBtn.addEventListener('click', () => {
+        const saved = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
+        saved.push(dCanvas.toDataURL());
+        localStorage.setItem('reno-drawings', JSON.stringify(saved));
+        loadGallery();
+    });
 
-    saveBtn.addEventListener('click', saveToGallery);
+    // --- Gallery Slider Logic (Drag, Swipe, Auto-scroll) ---
+    let isDown = false, startX, scrollLeft, velocity = 0, autoScrollX = 0, isInteracting = false;
+
+    const updateSlider = () => {
+        const totalWidth = gallery.scrollWidth;
+        const containerWidth = galleryContainer.offsetWidth;
+        if (totalWidth <= containerWidth) { gallery.style.transform = 'translateX(0)'; return; }
+    };
+
+    const step = () => {
+        if (!isInteracting && !isDown) {
+            autoScrollX -= 0.5; // Slowly flowing
+            const totalWidth = gallery.scrollWidth;
+            const containerWidth = galleryContainer.offsetWidth;
+            if (Math.abs(autoScrollX) > totalWidth - containerWidth) autoScrollX = 0;
+            gallery.style.transform = `translateX(${autoScrollX}px)`;
+        }
+        requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+
+    galleryContainer.addEventListener('mousedown', (e) => {
+        isDown = true; isInteracting = true;
+        startX = e.pageX - gallery.offsetLeft;
+        scrollLeft = autoScrollX;
+    });
+    galleryContainer.addEventListener('mouseleave', () => { isDown = false; isInteracting = false; });
+    galleryContainer.addEventListener('mouseup', () => { isDown = false; setTimeout(() => isInteracting = false, 1000); });
+    galleryContainer.addEventListener('mousemove', (e) => {
+        if (!isDown) return;
+        e.preventDefault();
+        const x = e.pageX - gallery.offsetLeft;
+        const walk = (x - startX) * 2;
+        autoScrollX = scrollLeft + walk;
+        // Boundaries
+        const maxScroll = -(gallery.scrollWidth - galleryContainer.offsetWidth);
+        if (autoScrollX > 0) autoScrollX = 0;
+        if (autoScrollX < maxScroll) autoScrollX = maxScroll;
+        gallery.style.transform = `translateX(${autoScrollX}px)`;
+    });
+
+    // Touch Support
+    galleryContainer.addEventListener('touchstart', (e) => {
+        isDown = true; isInteracting = true;
+        startX = e.touches[0].pageX - gallery.offsetLeft;
+        scrollLeft = autoScrollX;
+    });
+    galleryContainer.addEventListener('touchend', () => { isDown = false; setTimeout(() => isInteracting = false, 1000); });
+    galleryContainer.addEventListener('touchmove', (e) => {
+        if (!isDown) return;
+        const x = e.touches[0].pageX - gallery.offsetLeft;
+        const walk = (x - startX) * 2;
+        autoScrollX = scrollLeft + walk;
+        const maxScroll = -(gallery.scrollWidth - galleryContainer.offsetWidth);
+        if (autoScrollX > 0) autoScrollX = 0;
+        if (autoScrollX < maxScroll) autoScrollX = maxScroll;
+        gallery.style.transform = `translateX(${autoScrollX}px)`;
+    });
+
     loadGallery();
 });

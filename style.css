@@ -131,6 +131,7 @@ h2::after {
     justify-content: center;
     gap: 5px;
     padding: 2rem 0;
+    position: relative;
 }
 .key {
     width: 50px;
@@ -142,70 +143,101 @@ h2::after {
     display: flex;
     align-items: flex-end;
     justify-content: center;
-    padding-bottom: 10px;
+    padding-bottom: 25px; /* Space for Note Name */
     color: #333;
     font-weight: bold;
     user-select: none;
+    position: relative;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
 }
-.key.active { transform: translateY(5px); background: #ddd; }
+.key-label {
+    position: absolute;
+    top: 10px;
+    font-size: 0.7rem;
+    color: #888;
+    text-transform: uppercase;
+}
+.key.active { transform: translateY(5px); background: #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
 .key.black {
-    width: 30px;
-    height: 100px;
-    background: #1a1a1a;
+    width: 32px;
+    height: 110px;
+    background: linear-gradient(180deg, #333, #000);
     color: white;
-    margin-left: -17.5px;
-    margin-right: -17.5px;
+    margin-left: -18.5px;
+    margin-right: -18.5px;
     z-index: 2;
+    padding-bottom: 10px;
+    border-radius: 0 0 3px 3px;
 }
+.key.black .key-label { color: #aaa; top: 5px; }
 .key.black.active { background: #444; }
 
-/* Drawing Canvas */
+/* Drawing Canvas & Gallery Slider */
 .canvas-wrapper {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    gap: 1.5rem;
 }
 #drawing-canvas {
     background: white;
     border-radius: 12px;
     cursor: crosshair;
     max-width: 100%;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
 }
-.canvas-controls {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
-    justify-content: center;
+
+.gallery-container {
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+    margin-top: 3rem;
+    padding: 1rem 0;
+    cursor: grab;
 }
-.btn {
-    padding: 0.8rem 1.5rem;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    font-weight: 600;
-    transition: var(--transition);
-    background: var(--glass-bg);
-    color: white;
-    border: 1px solid var(--glass-border);
-}
-.btn:hover { background: var(--accent-color); color: var(--bg-color); }
-.btn-primary { background: var(--accent-color); color: var(--bg-color); }
+.gallery-container:active { cursor: grabbing; }
 
 .gallery {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 1rem;
-    margin-top: 2rem;
+    display: flex;
+    gap: 1.5rem;
+    padding: 0 1rem;
+    transition: transform 0.1s ease-out;
+    will-change: transform;
 }
+
 .gallery-item {
+    flex: 0 0 200px;
+    height: 150px;
     background: white;
-    border-radius: 8px;
-    overflow: hidden;
-    height: 120px;
+    border-radius: 12px;
+    position: relative;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    transition: transform 0.3s;
 }
-.gallery-item img { width: 100%; height: 100%; object-fit: contain; }
+.gallery-item:hover { transform: scale(1.05); }
+.gallery-item img { width: 100%; height: 100%; object-fit: contain; padding: 10px; }
+
+.delete-btn {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 28px;
+    height: 28px;
+    background: #ff4757;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    border: 2px solid var(--bg-color);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 10;
+}
+.gallery-item:hover .delete-btn { opacity: 1; transform: scale(1.1); }
+.delete-btn:hover { background: #ff6b81; transform: scale(1.2) !important; }
 
 @media (max-width: 768px) {
     h1 { font-size: 2.8rem; }

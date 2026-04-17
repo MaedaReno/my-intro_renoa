@@ -52,19 +52,19 @@
             <p style="text-align: center; margin-bottom: 2rem;">音が出るよ！クリックするかキーボード（A〜K）で弾いてみてね。</p>
             <div class="glass-card">
                 <div class="piano-container">
-                    <div class="key white" data-note="C4" data-key="a">Do</div>
-                    <div class="key black" data-note="C#4" data-key="w"></div>
-                    <div class="key white" data-note="D4" data-key="s">Re</div>
-                    <div class="key black" data-note="D#4" data-key="e"></div>
-                    <div class="key white" data-note="E4" data-key="d">Mi</div>
-                    <div class="key white" data-note="F4" data-key="f">Fa</div>
-                    <div class="key black" data-note="F#4" data-key="t"></div>
-                    <div class="key white" data-note="G4" data-key="g">So</div>
-                    <div class="key black" data-note="G#4" data-key="y"></div>
-                    <div class="key white" data-note="A4" data-key="h">La</div>
-                    <div class="key black" data-note="A#4" data-key="u"></div>
-                    <div class="key white" data-note="B4" data-key="j">Si</div>
-                    <div class="key white" data-note="C5" data-key="k">Do</div>
+                    <div class="key white" data-note="C4" data-key="a"><span class="key-label">A</span>Do</div>
+                    <div class="key black" data-note="C#4" data-key="w"><span class="key-label">W</span></div>
+                    <div class="key white" data-note="D4" data-key="s"><span class="key-label">S</span>Re</div>
+                    <div class="key black" data-note="D#4" data-key="e"><span class="key-label">E</span></div>
+                    <div class="key white" data-note="E4" data-key="d"><span class="key-label">D</span>Mi</div>
+                    <div class="key white" data-note="F4" data-key="f"><span class="key-label">F</span>Fa</div>
+                    <div class="key black" data-note="F#4" data-key="t"><span class="key-label">T</span></div>
+                    <div class="key white" data-note="G4" data-key="g"><span class="key-label">G</span>So</div>
+                    <div class="key black" data-note="G#4" data-key="y"><span class="key-label">Y</span></div>
+                    <div class="key white" data-note="A4" data-key="h"><span class="key-label">H</span>La</div>
+                    <div class="key black" data-note="A#4" data-key="u"><span class="key-label">U</span></div>
+                    <div class="key white" data-note="B4" data-key="j"><span class="key-label">J</span>Si</div>
+                    <div class="key white" data-note="C5" data-key="k"><span class="key-label">K</span>Do</div>
                 </div>
                 <div class="canvas-controls" style="margin-top: 2rem;">
                     <button class="btn" id="record-btn">録音開始 (最大30秒)</button>
@@ -87,8 +87,10 @@
                         <button class="btn btn-primary" id="save-btn">ギャラリーに追加</button>
                     </div>
                 </div>
-                <div class="gallery" id="drawing-gallery">
-                    <!-- Saved drawings will appear here -->
+                <div class="gallery-container" id="gallery-container">
+                    <div class="gallery" id="drawing-gallery">
+                        <!-- Saved drawings will appear here -->
+                    </div>
                 </div>
             </div>
         </section>
