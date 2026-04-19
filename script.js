@@ -5,19 +5,11 @@ document.addEventListener('DOMContentLoaded', () => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 entry.target.classList.add('active');
-                if (entry.target.id === 'skills') animateSkillBars();
             }
         });
     }, observerOptions);
 
     document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-
-    function animateSkillBars() {
-        document.querySelectorAll('.skill-bar-fill').forEach(bar => {
-            const percent = bar.getAttribute('data-percent');
-            bar.style.width = percent + '%';
-        });
-    }
 
     // --- 1. Particle Background ---
     const canvas = document.getElementById('particle-canvas');
