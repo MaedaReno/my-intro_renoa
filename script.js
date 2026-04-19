@@ -11,42 +11,119 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
-    // --- 1. Particle Background ---
+    // --- 1. Particle Background & Universe Customizer ---
     const canvas = document.getElementById('particle-canvas');
     const ctx = canvas.getContext('2d');
     let particles = [];
+    let bgImagesResources = [];
+    let illustrationMode = false;
+    let bgScaleFactor = 40;
+    let bgDensity = 15;
+
     const resizeCanvas = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
     class Particle {
         constructor() {
+            this.init();
+        }
+        init() {
             this.x = Math.random() * canvas.width;
             this.y = Math.random() * canvas.height;
             this.size = Math.random() * 2 + 1;
             this.speedX = Math.random() * 0.5 - 0.25;
             this.speedY = Math.random() * 0.5 - 0.25;
             this.opacity = Math.random() * 0.5 + 0.2;
+            
+            // Image properties
+            this.isImage = false;
+            if (illustrationMode && bgImagesResources.length > 0 && Math.random() < (bgDensity / 100)) {
+                this.isImage = true;
+                this.img = bgImagesResources[Math.floor(Math.random() * bgImagesResources.length)];
+                this.scale = (Math.random() * 0.5 + 0.5) * (bgScaleFactor / 100);
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.01;
+            }
         }
         update() {
             this.x += this.speedX; this.y += this.speedY;
-            if (this.x > canvas.width) this.x = 0; if (this.x < 0) this.x = canvas.width;
-            if (this.y > canvas.height) this.y = 0; if (this.y < 0) this.y = canvas.height;
+            if (this.isImage) this.rotation += this.rotationSpeed;
+            
+            if (this.x > canvas.width + 100) this.x = -100; 
+            if (this.x < -100) this.x = canvas.width + 100;
+            if (this.y > canvas.height + 100) this.y = -100; 
+            if (this.y < -100) this.y = canvas.height + 100;
         }
         draw() {
-            ctx.fillStyle = `rgba(56, 189, 248, ${this.opacity})`;
-            ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+            if (this.isImage && illustrationMode && this.img.complete) {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.globalAlpha = this.opacity * 0.6;
+                const w = this.img.width * this.scale;
+                const h = this.img.height * this.scale;
+                ctx.drawImage(this.img, -w/2, -h/2, w, h);
+                ctx.restore();
+            } else {
+                ctx.fillStyle = `rgba(56, 189, 248, ${this.opacity})`;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2); ctx.fill();
+            }
         }
     }
 
-    function initParticles() { particles = []; for (let i = 0; i < 80; i++) particles.push(new Particle()); }
-    initParticles();
+    function initParticles() { 
+        particles = []; 
+        const count = illustrationMode ? 60 : 80;
+        for (let i = 0; i < count; i++) particles.push(new Particle()); 
+    }
+
     const animateParticles = () => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         particles.forEach(p => { p.update(); p.draw(); });
         requestAnimationFrame(animateParticles);
     };
+
+    // Load images for background
+    function syncBackgroundResources() {
+        const saved = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
+        const latest = saved.slice(-12); // Latest 12 drawings
+        bgImagesResources = latest.map(data => {
+            const img = new Image();
+            img.src = data;
+            return img;
+        });
+        if (illustrationMode) initParticles();
+    }
+
+    // UI Bindings
+    const bgToggle = document.getElementById('bg-toggle');
+    const bgSize = document.getElementById('bg-size');
+    const bgFreq = document.getElementById('bg-freq');
+
+    if (bgToggle) {
+        bgToggle.addEventListener('change', (e) => {
+            illustrationMode = e.target.checked;
+            syncBackgroundResources();
+            initParticles();
+        });
+    }
+    if (bgSize) {
+        bgSize.addEventListener('input', (e) => {
+            bgScaleFactor = e.target.value;
+            particles.forEach(p => { if (p.isImage) p.scale = (Math.random() * 0.5 + 0.5) * (bgScaleFactor / 100); });
+        });
+    }
+    if (bgFreq) {
+        bgFreq.addEventListener('input', (e) => {
+            bgDensity = e.target.value;
+            initParticles();
+        });
+    }
+
+    initParticles();
     animateParticles();
+    syncBackgroundResources();
 
     // --- 2. Interactive Piano & Recording ---
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -78,6 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
         key.addEventListener('mousedown', () => { handleNotePress(key.getAttribute('data-note')); key.classList.add('active'); });
         key.addEventListener('mouseup', () => key.classList.remove('active'));
         key.addEventListener('mouseleave', () => key.classList.remove('active'));
+        key.addEventListener('touchstart', (e) => { e.preventDefault(); handleNotePress(key.getAttribute('data-note')); key.classList.add('active'); }, {passive: false});
+        key.addEventListener('touchend', () => key.classList.remove('active'));
     });
 
     window.addEventListener('keydown', (e) => {
@@ -145,7 +224,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (saved.length === 0) { originalWidth = 0; currentX = 0; updateSliderUI(); return; }
 
         const containerWidth = galleryContainer.offsetWidth;
-        const itemWidth = 200 + 24; // Width + Margin (0.75rem * 2)
+        const itemWidth = 200 + 24; 
         const itemsPerSet = saved.length;
         const setWidth = itemsPerSet * itemWidth;
 
@@ -160,14 +239,12 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         if (setWidth <= containerWidth) {
-            // No need to scroll
             renderSet();
             gallery.classList.add('no-scroll');
             originalWidth = 0;
             currentX = 0;
             updateSliderUI();
         } else {
-            // Infinity scroll needed
             const repeatCount = Math.max(3, Math.ceil((containerWidth * 2) / setWidth) + 1);
             for (let i = 0; i < repeatCount; i++) renderSet();
 
@@ -191,15 +268,17 @@ document.addEventListener('DOMContentLoaded', () => {
         saved.splice(index, 1);
         localStorage.setItem('reno-drawings', JSON.stringify(saved));
         loadGallery();
+        syncBackgroundResources();
     }
     saveBtn.addEventListener('click', () => {
         const saved = JSON.parse(localStorage.getItem('reno-drawings') || '[]');
         saved.push(dCanvas.toDataURL());
         localStorage.setItem('reno-drawings', JSON.stringify(saved));
         loadGallery();
+        syncBackgroundResources();
     });
 
-    // --- High-Precision Slider Logic ---
+    // --- Slider Logic ---
     let originalWidth = 0, currentX = 0, velocity = 0, isDown = false, lastX = 0, lastTime = 0, isInteracting = false;
     const friction = 0.96;
 
@@ -229,9 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const onPointerDown = (e) => {
         if (originalWidth <= 0) return;
-        // Bug fix: Do not setPointerCapture if we clicked a delete button
         if (e.target.classList.contains('delete-btn')) return;
-        
         isDown = true; isInteracting = true;
         lastX = e.clientX; lastTime = performance.now();
         velocity = 0;
